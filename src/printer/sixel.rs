@@ -1,20 +1,17 @@
-use crate::error::ViuResult;
-use crate::printer::{adjust_offset, find_best_fit, Printer};
-use crate::Config;
-use image::{imageops::FilterType, DynamicImage, GenericImageView};
-use sixel_rs::encoder::{Encoder, QuickFrameBuilder};
-use sixel_rs::optflags::EncodePolicy;
-use std::io::Write;
+use icy_sixel::sixel_string;
+use image::{imageops::FilterType, GenericImageView};
+use super::{adjust_offset, find_best_fit, Printer};
 
 pub struct SixelPrinter;
 
 impl Printer for SixelPrinter {
     fn print(
         &self,
-        stdout: &mut impl Write,
-        img: &DynamicImage,
-        config: &Config,
-    ) -> ViuResult<(u32, u32)> {
+        stdout: &mut impl std::io::Write,
+        img: &image::DynamicImage,
+        config: &crate::Config,
+    ) -> crate::ViuResult<(u32, u32)> {
+
         let (w, h) = find_best_fit(img, config.width, config.height);
 
         //TODO: the max 1000 width is an xterm bug workaround, other terminals may not be affected
@@ -28,17 +25,18 @@ impl Printer for SixelPrinter {
 
         adjust_offset(stdout, config)?;
 
-        let encoder = Encoder::new()?;
+        let output = sixel_string(
+            raw,
+            width as i32,
+            height as i32,
+            icy_sixel::PixelFormat::RGBA8888,
+            icy_sixel::DiffusionMethod::Auto,
+            icy_sixel::MethodForLargest::Auto,
+            icy_sixel::MethodForRep::Auto,
+            icy_sixel::Quality::AUTO)?;
 
-        encoder.set_encode_policy(EncodePolicy::Fast)?;
-
-        let frame = QuickFrameBuilder::new()
-            .width(width as usize)
-            .height(height as usize)
-            .format(sixel_rs::sys::PixelFormat::RGBA8888)
-            .pixels(raw.to_vec());
-
-        encoder.encode_bytes(frame)?;
+        write!(stdout, "{output}")?;
+        stdout.flush()?;
 
         Ok((w, h))
     }

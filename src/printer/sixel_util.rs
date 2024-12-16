@@ -52,7 +52,6 @@ fn check_sixel_support() -> bool {
     }
 
     // Windows terminal.
-    #[cfg(feature = "icy_sixel")]
     if let Ok(_guid) = std::env::var("WT_SESSION") {
         return true;
     }
